@@ -30,13 +30,27 @@ def signal_handler(sig, frame):
 
 async def switcher(port: int):
     global _terminate
+
+    _terminate = asyncio.Event()
+    _log.info("Starting up")
+
+    name_queue = asyncio.Queue()
+
+    tasks = (
+        asyncio.create_task(listen_events(port, _terminate, name_queue)),
+        asyncio.create_task(run_image_server(_terminate, name_queue)),
+        asyncio.create_task(_terminate.wait()),
+    )
+
+    _log.info("Application running")
+
+    await asyncio.sleep(0.2)
+
     signal(SIGINT, signal_handler)
     signal(SIGTERM, signal_handler)
-    # rcv_thread = Thread(target=start_receiver, args=(port,)).start()
-    _terminate = asyncio.Event()
-    _log.info("Starting event receiver")
-    await listen_events(port, _terminate)
-    await _terminate.wait()
+
+    await asyncio.wait(tasks)
+
     _log.info("All done, bye bye :)")
 
 def main(port: int=8888, debug: bool=False):
