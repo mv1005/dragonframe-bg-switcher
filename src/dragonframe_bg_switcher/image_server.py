@@ -4,27 +4,33 @@ import time
 import sys
 import asyncio
 import logging
+import base64
 
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, Response
 from turbo_flask import Turbo
 from datetime import timedelta
 from multiprocessing import Process
 from threading import Thread
 from random import randint
+from pathlib import Path
 
 app = Flask(__name__)
 turbo = Turbo(app)
 
 _log = logging.getLogger(__name__)
+_frame_name = None
+_image_dir = None
 
-FRAME = """
-<div id="frame_name">
-    {% if frame_name %}
-        Frame name: {{ frame_name }}
-    {% else %}
-        No event received yet.
-    {% endif %}
-</div>
+IMAGE = """
+{% if frame_name %}
+<div style="width:100%" id="image_container">
+    <img src="/image/{{ frame_name }}" style="width:100%">
+<div>
+{% else %}
+<div style="width:100%;margin:10%;font-size=300%" id="image_container">
+    <p>No event received yet.</p>
+<div>
+{% endif %}
 """
 
 INDEX = """
@@ -33,8 +39,8 @@ INDEX = """
   <head>
     {{ turbo() }}
   </head>
-  <body>
-""" + FRAME + """
+  <body style="margin:0px">
+""" + IMAGE + """
   </body>
 </html>
 """
@@ -45,30 +51,42 @@ async def update_frame_name(terminate: asyncio.Event, name_queue: asyncio.Queue)
         name_task = asyncio.create_task(name_queue.get())
         await asyncio.wait((name_task, terminate.wait()), return_when=asyncio.FIRST_COMPLETED)
         if name_task.done():
-            name = name_task.result()
-            _log.debug(f"updating name: {name}")
+            global _frame_name
+            _frame_name = name_task.result()
+            _log.debug(f"Received frame name: {_frame_name}")
             with app.app_context():
-                turbo.push(turbo.replace(render_template_string(FRAME, frame_name=name), 'frame_name'))
+                turbo.push(turbo.replace(render_template_string(IMAGE), "image_container"))
 
 
 @app.route("/")
 def index():
     return render_template_string(INDEX)
 
-# @app.context_processor
-# def inject_load():
-#     if sys.platform.startswith('linux'):
-#         with open('/proc/loadavg', 'rt') as f:
-#             load = f.read().split()[0:3]
-#     else:
-#         load = [int(random.random() * 100) / 100 for _ in range(3)]
-#     return {'load1': load[0], 'load5': load[1], 'load15': load[2]}
+@app.route("/image/<filename>")
+def image(filename: str):
+    image_path = Path(_image_dir, filename)
+    try:
+        with image_path.open("rb") as f:
+            image_data = f.read()
+        _log.info(f"Loaded image: {image_path.as_posix()}")
+        return Response(image_data)
+    except FileNotFoundError:
+        _log.error(f"File not found: {image_path.as_posix()}")
+        return Response(status=404)
 
-async def run_image_server(terminate: asyncio.Event, name_queue: asyncio.Queue):
-    t = Thread(target=lambda: app.run(debug=False, use_reloader=False), daemon=True)
+@app.context_processor
+def inject_frame_name():
+    _log.debug(f"Current frame name: {_frame_name}")
+    return {"frame_name": _frame_name}
+
+async def run_image_server(terminate: asyncio.Event, name_queue: asyncio.Queue, debug: bool, image_dir: Path):
+    t = Thread(target=lambda: app.run(debug=debug, use_reloader=False, host="0.0.0.0"), daemon=True)
     tasks = (
         asyncio.create_task(update_frame_name(terminate, name_queue)),
     )
+
+    global _image_dir
+    _image_dir = image_dir
 
     t.start()
 

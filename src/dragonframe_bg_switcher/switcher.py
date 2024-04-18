@@ -10,6 +10,7 @@ from threading import Lock, Thread, Event
 from signal import signal, SIGINT, SIGTERM, Signals
 from time import sleep
 from rich.logging import RichHandler
+from pathlib import Path
 
 from dragonframe_bg_switcher.event_receiver import listen_events
 from dragonframe_bg_switcher.image_server import run_image_server
@@ -28,7 +29,7 @@ def signal_handler(sig, frame):
     _log.debug(f"Received {Signals(sig).name}")
     asyncio.get_running_loop().call_soon_threadsafe(set_term_event)
 
-async def switcher(port: int):
+async def switcher(port: int, debug: bool, image_dir: Path):
     global _terminate
 
     _terminate = asyncio.Event()
@@ -38,7 +39,7 @@ async def switcher(port: int):
 
     tasks = (
         asyncio.create_task(listen_events(port, _terminate, name_queue)),
-        asyncio.create_task(run_image_server(_terminate, name_queue)),
+        asyncio.create_task(run_image_server(_terminate, name_queue, debug, image_dir)),
         asyncio.create_task(_terminate.wait()),
     )
 
@@ -53,14 +54,23 @@ async def switcher(port: int):
 
     _log.info("All done, bye bye :)")
 
-def main(port: int=8888, debug: bool=False):
+def main(image_dir: Path, port: int=8888, debug: bool=False):
     if debug:
         log_level = logging.DEBUG
     else:
         log_level = logging.INFO
     my_handler = RichHandler(show_path=False, log_time_format="%d %b %H:%m:%S")
     logging.basicConfig(level=log_level, format="%(module)s: %(message)s", handlers=[my_handler])
-    asyncio.run(switcher(port))
+
+    if not image_dir.exists():
+        _log.error(f"Image directory does not exist: {image_dir.as_posix()}")
+        sys.exit(1)
+
+    if not image_dir.is_dir():
+        _log.error(f"Image directory is not a directory: {image_dir.as_posix()}")
+        sys.exit(1)
+
+    asyncio.run(switcher(port, debug, image_dir))
 
 def cli_entrypoint():
     typer.run(main)
