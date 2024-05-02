@@ -17,7 +17,7 @@ This project is still under initial development.
 
 ## Installation
 
-Recommenced instalation method is using `pipx`. This will automatically
+Recommended installation method is using `pipx`. This will automatically
 install the application inside an isolated virtualenv and populate the
 provided executables via your `PATH`.
 
@@ -78,7 +78,7 @@ switch your browser to full screen mode.
 You can emulate the behaviour of Dragonframe with any program that is
 capable of sending text via a TCP socket.
 
-The following shows an example using netcat (`nc`), assuming that
+The following shows an example using `nc` (netcat), assuming that
 `dragonframe-bg-switcher` is running on the same host.
 
 ```console
