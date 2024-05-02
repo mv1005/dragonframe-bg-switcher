@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 
-import typer
 import asyncio
+import logging
 
 from asyncio.streams import StreamReader, StreamWriter
 
+_log = logging.getLogger(__name__)
 
 def handle_event(message: str):
-    print(f"Received: {message}")
+    _log.info("Received: {message}")
     fields = message.split(" ")
     if fields[0] == "PF":
         if len(fields) < 4:
-            print("Incomplete event data!")
+            _log.warn("Incomplete event data")
         else:
-            print("Detected valid PF event")
-            print(f"Switching to image: {fields[3]}")
+            _log.info(f"Valid PF event detected with frame name '{fields[3]}'")
 
 
 async def handle_connection(reader: StreamReader, writer: StreamWriter):
-
-    addr = writer.get_extra_info("peername")
-    print(f"New connection: {addr}")
+    addr = ":".join([str(x) for x in writer.get_extra_info("peername")])
+    _log.info(f"New connection from {addr}")
 
     while not reader.at_eof():
         data = await reader.readline()
@@ -30,23 +29,23 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter):
 
     writer.close()
     await writer.wait_closed()
-    print(f"Connection closed: {addr}")
+
+    _log.info(f"Connection closed by peer {addr}")
 
 
-async def listen_events(port: int):
+async def listen_events(port: int, terminate: asyncio.Event):
     server = await asyncio.start_server(
         handle_connection, "0.0.0.0", port)
 
-    addrs = ', '.join(str(sock.getsockname()) for sock in server.sockets)
-    print(f'Serving: {addrs}')
+    addr = ":".join([str(x) for x in server.sockets[0].getsockname()])
+    _log.info(f"Listening on {addr}")
+
+    tasks = (
+        asyncio.create_task(server.serve_forever()),
+        asyncio.create_task(terminate.wait())
+    )
 
     async with server:
-        await server.serve_forever()
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
-
-def run_server(port: int=8888):
-    asyncio.run(listen_events(port))
-
-
-def main():
-    typer.run(run_server)
+    _log.info(f"Terminating")

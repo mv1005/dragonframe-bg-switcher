@@ -28,6 +28,7 @@ dependencies = [
   "typer-slim",
   "flask",
   "turbo-flask",
+  "rich",
 ]
 
 [project.urls]
@@ -36,7 +37,7 @@ Issues = "https://github.com/unknown/dragonframe-bg-switcher/issues"
 Source = "https://github.com/unknown/dragonframe-bg-switcher"
 
 [project.scripts]
-dragonframe-bg-switcher = "dragonframe_bg_switcher.event_receiver:main"
+dragonframe-bg-switcher = "dragonframe_bg_switcher.switcher:cli_entrypoint"
 
 [tool.hatch.version]
 source = "vcs"
