@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -24,15 +24,22 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "typer-slim",
+  "flask",
+  "turbo-flask",
+]
 
 [project.urls]
 Documentation = "https://github.com/unknown/dragonframe-bg-switcher#readme"
 Issues = "https://github.com/unknown/dragonframe-bg-switcher/issues"
 Source = "https://github.com/unknown/dragonframe-bg-switcher"
 
+[project.scripts]
+dragonframe-bg-switcher = "dragonframe_bg_switcher.event_receiver:main"
+
 [tool.hatch.version]
-path = "src/dragonframe_bg_switcher/__about__.py"
+source = "vcs"
 
 [tool.hatch.envs.default]
 dependencies = [
