@@ -9,6 +9,7 @@ screen can be used as dynamic background during stop-motion recordings.
 - [Status](#status)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Status
@@ -54,10 +55,18 @@ like:
 PF [FRAME] [EXPOSURE] [EXPOSURE NAME] [STEREO INDEX][\r\n]
 ```
 
-The third argument named `EXPOSURE NAME` will be used as image name
+The third argument named `EXPOSURE NAME` will be used as image filename
 beeing looked up in the directory you specified when starting
-`dragonframe-bg-switcher`. That image will be loaded and served
-via a dynamic web page.
+`dragonframe-bg-switcher`. That image will be loaded and served via
+a dynamic web page.
+
+> [!NOTE]
+> Currently, the string in `EXPOSURE NAME` will be directly used as
+> filename for the image "as is". Because Dragonframe does not allow
+> dots in exposure names, your image files also must have no extension.
+> This is unusual and cumbersome, but is a limitation of the current
+> implementation. It will be improved in a next release. Also see
+> [Roadmap](#roadmap).
 
 ### Display dynamic image in browser
 
@@ -87,8 +96,21 @@ nc localhost 8888
 
 In netcat prompt, type any Dragaonframe event you like, e.g.
 ```
-PF 1 1 test.jpg
+PF 1 1 test_image
 ```
+
+This should trigger the loading of an image file named `test_image`
+(which must be present in the image directory) and show it in your
+browser.
+
+## Roadmap
+
+Currently, the following features are planned for upcoming releases:
+
+* Support image files with extensions
+* Optionally, keep current image if event is received requesting a non existing image
+* Fix short delay when image is show for the first time
+* Support for indiviual backgound images per frame
 
 
 ## License
