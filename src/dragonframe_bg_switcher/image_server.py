@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
-import time
-import sys
 import asyncio
-import logging
 import base64
-
-from flask import Flask, render_template_string, Response
-from turbo_flask import Turbo
+import logging
+import sys
+import time
 from datetime import timedelta
 from multiprocessing import Process
-from threading import Thread
-from random import randint
 from pathlib import Path
+from random import randint
+from threading import Thread
+
+from flask import Flask, Response, render_template_string
+from turbo_flask import Turbo  # type: ignore
 
 app = Flask(__name__)
 turbo = Turbo(app)
 
 _log = logging.getLogger(__name__)
-_frame_name = None
-_image_dir = None
+_frame_name = ""
+_image_dir = Path()
 
 IMAGE = """
 {% if frame_name %}
@@ -33,37 +34,51 @@ IMAGE = """
 {% endif %}
 """
 
-INDEX = """
+INDEX = (
+    """
 <!doctype html>
 <html>
   <head>
     {{ turbo() }}
   </head>
   <body style="margin:0px">
-""" + IMAGE + """
+"""
+    + IMAGE
+    + """
   </body>
 </html>
 """
+)
 
-async def update_frame_name(terminate: asyncio.Event, name_queue: asyncio.Queue):
+
+async def update_frame_name(
+    terminate: asyncio.Event,
+    name_queue: asyncio.Queue[str],
+) -> None:
     while not terminate.is_set():
-        _log.debug(f"waiting for name update")
+        _log.debug("waiting for name update")
         name_task = asyncio.create_task(name_queue.get())
-        await asyncio.wait((name_task, terminate.wait()), return_when=asyncio.FIRST_COMPLETED)
+        terminate_task = asyncio.create_task(terminate.wait())
+        await asyncio.wait(
+            (name_task, terminate_task), return_when=asyncio.FIRST_COMPLETED
+        )
         if name_task.done():
             global _frame_name
             _frame_name = name_task.result()
             _log.debug(f"Received frame name: {_frame_name}")
             with app.app_context():
-                turbo.push(turbo.replace(render_template_string(IMAGE), "image_container"))
+                turbo.push(
+                    turbo.replace(render_template_string(IMAGE), "image_container")
+                )
 
 
 @app.route("/")
-def index():
+def index() -> str:
     return render_template_string(INDEX)
 
+
 @app.route("/image/<filename>")
-def image(filename: str):
+def image(filename: str) -> Response:
     image_path = Path(_image_dir, filename)
     try:
         with image_path.open("rb") as f:
@@ -74,24 +89,29 @@ def image(filename: str):
         _log.error(f"File not found: {image_path.as_posix()}")
         return Response(status=404)
 
+
 @app.context_processor
-def inject_frame_name():
+def inject_image_name() -> dict[str, str]:
     _log.debug(f"Current frame name: {_frame_name}")
     return {"frame_name": _frame_name}
 
-async def run_image_server(terminate: asyncio.Event, name_queue: asyncio.Queue, debug: bool, image_dir: Path):
-    t = Thread(target=lambda: app.run(debug=debug, use_reloader=False, host="0.0.0.0"), daemon=True)
-    tasks = (
-        asyncio.create_task(update_frame_name(terminate, name_queue)),
+
+async def run_image_server(
+    terminate: asyncio.Event, name_queue: asyncio.Queue[str], debug: bool, image_dir: Path
+) -> None:
+    t = Thread(
+        target=lambda: app.run(debug=debug, use_reloader=False, host="0.0.0.0"),
+        daemon=True,
     )
+    tasks = (asyncio.create_task(update_frame_name(terminate, name_queue)),)
 
     global _image_dir
     _image_dir = image_dir
 
     t.start()
 
-    _log.info(f"Running")
+    _log.info("Running")
 
     await asyncio.wait(tasks)
 
-    _log.info(f"Terminating")
+    _log.info("Terminating")

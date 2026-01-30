@@ -69,6 +69,18 @@ dependencies = [
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/dragonframe_bg_switcher tests}"
 
+[tool.hatch.envs.lint]
+extra-dependencies = [
+  "mypy==1.17.1",
+  "ruff==0.12.12",
+]
+
+[tool.hatch.envs.lint.scripts]
+fmt = "ruff check --output-format concise --fix {args:src/dragonframe_bg_switcher tests}; ruff format {args:src/dragonframe_bg_switcher tests}"
+check = "ruff check --output-format concise {args:src/dragonframe_bg_switcher tests}"
+typing = "mypy --install-types --non-interactive {args:src/dragonframe_bg_switcher tests}"
+all = ["check", "typing"]
+
 [tool.coverage.run]
 source_pkgs = ["dragonframe_bg_switcher", "tests"]
 branch = true
@@ -87,3 +99,25 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.ruff]
+# Assume Python 3.12
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = [
+  "I",
+]
+ignore = [
+  "F401",
+]
+unfixable = [
+  "F401", # leave unused imports as is
+]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.mypy]
+disallow_untyped_defs = true
+disallow_any_generics = true
