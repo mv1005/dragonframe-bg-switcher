@@ -19,13 +19,12 @@ app = Flask(__name__)
 turbo = Turbo(app)
 
 _log = logging.getLogger(__name__)
-_frame_name = ""
 _image_dir = Path()
 
 IMAGE = """
-{% if frame_name %}
+{% if image_name %}
 <div style="width:100%" id="image_container">
-    <img src="/image/{{ frame_name }}" style="width:100%">
+    <img src="/image/{{ image_name }}" style="width:100%">
 <div>
 {% else %}
 <div style="width:100%;margin:10%;font-size=300%" id="image_container">
@@ -51,7 +50,7 @@ INDEX = (
 )
 
 
-async def update_frame_name(
+async def update_image_name(
     terminate: asyncio.Event,
     name_queue: asyncio.Queue[str],
 ) -> None:
@@ -63,12 +62,14 @@ async def update_frame_name(
             (name_task, terminate_task), return_when=asyncio.FIRST_COMPLETED
         )
         if name_task.done():
-            global _frame_name
-            _frame_name = name_task.result()
-            _log.debug(f"Received frame name: {_frame_name}")
+            image_name = name_task.result()
+            _log.debug(f"Received image name: {image_name}")
             with app.app_context():
                 turbo.push(
-                    turbo.replace(render_template_string(IMAGE), "image_container")
+                    turbo.replace(
+                        render_template_string(IMAGE, image_name=image_name),
+                        "image_container",
+                    )
                 )
 
 
@@ -79,31 +80,22 @@ def index() -> str:
 
 @app.route("/image/<filename>")
 def image(filename: str) -> Response:
-    image_path = Path(_image_dir, filename)
-    try:
-        with image_path.open("rb") as f:
-            image_data = f.read()
-        _log.info(f"Loaded image: {image_path.as_posix()}")
-        return Response(image_data)
-    except FileNotFoundError:
-        _log.error(f"File not found: {image_path.as_posix()}")
-        return Response(status=404)
-
-
-@app.context_processor
-def inject_image_name() -> dict[str, str]:
-    _log.debug(f"Current frame name: {_frame_name}")
-    return {"frame_name": _frame_name}
+    with Path(_image_dir, filename).open("rb") as f:
+        image_data = f.read()
+    return Response(image_data)
 
 
 async def run_image_server(
-    terminate: asyncio.Event, name_queue: asyncio.Queue[str], debug: bool, image_dir: Path
+    terminate: asyncio.Event,
+    name_queue: asyncio.Queue[str],
+    debug: bool,
+    image_dir: Path,
 ) -> None:
     t = Thread(
         target=lambda: app.run(debug=debug, use_reloader=False, host="0.0.0.0"),
         daemon=True,
     )
-    tasks = (asyncio.create_task(update_frame_name(terminate, name_queue)),)
+    tasks = (asyncio.create_task(update_image_name(terminate, name_queue)),)
 
     global _image_dir
     _image_dir = image_dir

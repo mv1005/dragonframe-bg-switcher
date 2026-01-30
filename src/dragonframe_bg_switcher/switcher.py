@@ -43,7 +43,7 @@ async def switcher(port: int, debug: bool, image_dir: Path) -> None:
     name_queue: asyncio.Queue[str] = asyncio.Queue()
 
     tasks = (
-        asyncio.create_task(listen_events(port, _terminate, name_queue)),
+        asyncio.create_task(listen_events(port, _terminate, name_queue, image_dir)),
         asyncio.create_task(run_image_server(_terminate, name_queue, debug, image_dir)),
         asyncio.create_task(_terminate.wait()),
     )

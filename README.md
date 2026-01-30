@@ -55,18 +55,19 @@ like:
 PF [FRAME] [EXPOSURE] [EXPOSURE NAME] [STEREO INDEX][\r\n]
 ```
 
-The third argument named `EXPOSURE NAME` will be used as image filename
-beeing looked up in the directory you specified when starting
-`dragonframe-bg-switcher`. That image will be loaded and served via
-a dynamic web page.
+The third argument named `EXPOSURE NAME` will be used as base name for
+the image file (without extension) looked up in the directory you
+specified when starting `dragonframe-bg-switcher`. That image will be
+loaded and served via a dynamic web page.
 
-> [!NOTE]
-> Currently, the string in `EXPOSURE NAME` will be directly used as
-> filename for the image "as is". Because Dragonframe does not allow
-> dots in exposure names, your image files also must have no extension.
-> This is unusual and cumbersome, but is a limitation of the current
-> implementation. It will be improved in a next release. Also see
-> [Roadmap](#roadmap).
+Because Dragonframe does not allow dots in `EXPOSURE NAME` you cannot
+specify an image file with extension explicitly. Instead, the first file
+found in the image directory with any extension and a matching basename
+will be loaded.
+
+If no image can be found matching the supplied name, the displayed image
+is not changed.
+
 
 ### Display dynamic image in browser
 
@@ -107,8 +108,6 @@ browser.
 
 Currently, the following features are planned for upcoming releases:
 
-* Support image files with extensions
-* Optionally, keep current image if event is received requesting a non existing image
 * Fix short delay when image is show for the first time
 * Support for indiviual backgound images per frame
 
